@@ -40,6 +40,10 @@ public class TaskService {
         response.setDescription(task.getDescription());
         response.setStatus(task.getStatus().name());
         response.setAuthor(task.getAuthor().getEmail());
+        response.setAssignee("none");
+        if (task.getAssignee() != null) {
+            response.setAssignee(task.getAssignee().getEmail());
+        }
         return response;
     }
 
@@ -56,5 +60,38 @@ public class TaskService {
                 .map(this::toTaskResponse)
                 .collect(Collectors.toList());
     }
+
+    public TaskResponse assignTask(Long taskId, AssignTaskRequest request, String currentUserEmail){
+
+        String assigneeEmail = request.getAssignee().toLowerCase();
+
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Task not found"));
+
+        if (!task.getAuthor().getEmail().equalsIgnoreCase(currentUserEmail)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only the author can assign the task");
+        }
+
+        if ("none".equalsIgnoreCase(assigneeEmail)) {
+            task.setAssignee(null);
+            return toTaskResponse(taskRepository.save(task));
+        }
+
+        if (!isValidEmail(assigneeEmail)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid assignee email");
+        }
+
+        Account assignee = accountRepository.findByEmail(assigneeEmail)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Assignee not found"));
+
+        task.setAssignee(assignee);
+        return toTaskResponse(taskRepository.save(task));
+    }
+
+    private boolean isValidEmail(String email) {
+        return email != null && email.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
+    }
+
+
 
 }

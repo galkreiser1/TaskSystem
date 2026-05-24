@@ -3,6 +3,7 @@ package com.example.tasksystem.tasks;
 import com.example.tasksystem.account.AccountRepository;
 import com.example.tasksystem.account.AccountService;
 import com.example.tasksystem.account.RegisterRequest;
+import com.example.tasksystem.task.TaskResponse;
 import com.example.tasksystem.task.TaskRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -11,10 +12,13 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import tools.jackson.databind.ObjectMapper;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -25,6 +29,8 @@ class TasksIntegrationTests {
 
     private static final String AUTH_EMAIL = "valid@email.com";
     private static final String AUTH_PASSWORD = "validpassword";
+    private static final String OTHER_EMAIL = "other@email.com";
+    private static final String OTHER_PASSWORD = "otherpassword";
     private static final String TASK_REQUEST_BODY = """
             {
               "title": "new task",
@@ -34,6 +40,9 @@ class TasksIntegrationTests {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Autowired
     private AccountRepository accountRepository;
@@ -53,6 +62,11 @@ class TasksIntegrationTests {
         request.setEmail(AUTH_EMAIL);
         request.setPassword(AUTH_PASSWORD);
         accountService.register(request);
+
+        RegisterRequest otherRequest = new RegisterRequest();
+        otherRequest.setEmail(OTHER_EMAIL);
+        otherRequest.setPassword(OTHER_PASSWORD);
+        accountService.register(otherRequest);
     }
 
     @Test
@@ -170,5 +184,78 @@ class TasksIntegrationTests {
                 .andExpect(jsonPath("$[0].description").value("second created task"))
                 .andExpect(jsonPath("$[1].title").value("older task"))
                 .andExpect(jsonPath("$[1].description").value("first created task"));
+    }
+
+    @Test
+    void assignTask_byAuthor_returnsUpdatedTask() throws Exception {
+        TaskResponse createdTask = createTaskAs(AUTH_EMAIL, AUTH_PASSWORD);
+
+        String assignRequestBody = """
+                {
+                  "assignee": "other@email.com"
+                }
+                """;
+
+        mockMvc.perform(put("/api/tasks/{taskId}/assign", createdTask.getId())
+                        .with(httpBasic(AUTH_EMAIL, AUTH_PASSWORD))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(assignRequestBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(createdTask.getId()))
+                .andExpect(jsonPath("$.author").value(AUTH_EMAIL))
+                .andExpect(jsonPath("$.assignee").value(OTHER_EMAIL));
+    }
+
+    @Test
+    void assignTask_withNone_removesAssignee() throws Exception {
+        TaskResponse createdTask = createTaskAs(AUTH_EMAIL, AUTH_PASSWORD);
+
+        mockMvc.perform(put("/api/tasks/{taskId}/assign", createdTask.getId())
+                        .with(httpBasic(AUTH_EMAIL, AUTH_PASSWORD))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "assignee": "other@email.com"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.assignee").value(OTHER_EMAIL));
+
+        mockMvc.perform(put("/api/tasks/{taskId}/assign", createdTask.getId())
+                        .with(httpBasic(AUTH_EMAIL, AUTH_PASSWORD))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "assignee": "none"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.assignee").value("none"));
+    }
+
+    @Test
+    void assignTask_byNonAuthor_returnsForbidden() throws Exception {
+        TaskResponse createdTask = createTaskAs(AUTH_EMAIL, AUTH_PASSWORD);
+
+        mockMvc.perform(put("/api/tasks/{taskId}/assign", createdTask.getId())
+                        .with(httpBasic(OTHER_EMAIL, OTHER_PASSWORD))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "assignee": "other@email.com"
+                                }
+                                """))
+                .andExpect(status().isForbidden());
+    }
+
+    private TaskResponse createTaskAs(String email, String password) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/tasks")
+                        .with(httpBasic(email, password))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(TASK_REQUEST_BODY))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        return objectMapper.readValue(result.getResponse().getContentAsString(), TaskResponse.class);
     }
 }

@@ -26,6 +26,10 @@ public class Task {
     @JoinColumn(name = "author_id")
     private Account author;
 
+    @ManyToOne
+    @JoinColumn(name = "assignee_id")
+    private Account assignee;
+
     public Long getId() {
         return id;
     }
@@ -60,5 +64,13 @@ public class Task {
 
     public void setAuthor(Account author) {
         this.author = author;
+    }
+
+    public Account getAssignee() {
+        return assignee;
+    }
+
+    public void setAssignee(Account assignee) {
+        this.assignee = assignee;
     }
 }

@@ -29,4 +29,13 @@ public class TaskController {
         TaskResponse response = taskService.createTask(request, authorEmail);
         return ResponseEntity.ok(response);
     }
+
+    @PutMapping("/tasks/{taskId}/assign")
+    public ResponseEntity<TaskResponse> assignTask(@PathVariable Long taskId, @RequestBody AssignTaskRequest request, Authentication authentication) {
+        String assigneeEmail = authentication.getName();
+        TaskResponse response = taskService.assignTask(taskId, request, assigneeEmail);
+        return ResponseEntity.ok(response);
+
+
+    }
 }

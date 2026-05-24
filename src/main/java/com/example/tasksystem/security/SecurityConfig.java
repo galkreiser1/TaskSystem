@@ -35,7 +35,7 @@ public class SecurityConfig {
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/actuator/shutdown").permitAll()
                         .requestMatchers("/h2-console/**").permitAll()
-                        .requestMatchers("/api/tasks").authenticated()
+                        .requestMatchers("/api/tasks/**").authenticated()
                 )
                 .addFilterBefore(bearerTokenAuthenticationFilter, BasicAuthenticationFilter.class)
                 .csrf(AbstractHttpConfigurer::disable)
