@@ -1,4 +1,4 @@
-package com.example.tasksystem.dto;
+package com.example.tasksystem.account;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

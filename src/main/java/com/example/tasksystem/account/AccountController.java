@@ -1,6 +1,5 @@
 package com.example.tasksystem.account;
 
-import com.example.tasksystem.dto.RegisterRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;

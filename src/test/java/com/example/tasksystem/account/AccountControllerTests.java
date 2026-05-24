@@ -1,6 +1,5 @@
 package com.example.tasksystem.account;
 
-import com.example.tasksystem.dto.RegisterRequest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;

@@ -2,7 +2,7 @@ package com.example.tasksystem.tasks;
 
 import com.example.tasksystem.account.AccountRepository;
 import com.example.tasksystem.account.AccountService;
-import com.example.tasksystem.dto.RegisterRequest;
+import com.example.tasksystem.account.RegisterRequest;
 import com.example.tasksystem.task.TaskRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
