@@ -8,5 +8,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
 
     List<Task> findAllByOrderByIdDesc();
     List<Task> findByAuthorEmailIgnoreCaseOrderByIdDesc(String email);
+    List<Task> findByAssigneeEmailIgnoreCaseOrderByIdDesc(String email);
+    List<Task> findByAuthorEmailIgnoreCaseAndAssigneeEmailIgnoreCaseOrderByIdDesc(String authorEmail, String assigneeEmail);
 
 }

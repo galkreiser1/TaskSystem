@@ -18,8 +18,18 @@ public class TaskController {
     }
 
     @GetMapping("/tasks")
-    public ResponseEntity<List<TaskResponse>> getTasks(@RequestParam (required = false) String author) {
-        List<TaskResponse> tasks = (author == null) ? taskService.getAllTasks() : taskService.getTasksByAuthor(author);
+    public ResponseEntity<List<TaskResponse>> getTasks(@RequestParam (required = false) String author, @RequestParam (required = false) String assignee) {
+        List<TaskResponse> tasks;
+
+        if (author != null && assignee != null) {
+            tasks = taskService.getTasksByAuthorAndAssignee(author, assignee);
+        } else if (author != null) {
+            tasks = taskService.getTasksByAuthor(author);
+        } else if (assignee != null) {
+            tasks = taskService.getTasksByAssignee(assignee);
+        } else {
+            tasks = taskService.getAllTasks();
+        }
         return ResponseEntity.ok(tasks);
     }
 
@@ -35,7 +45,12 @@ public class TaskController {
         String assigneeEmail = authentication.getName();
         TaskResponse response = taskService.assignTask(taskId, request, assigneeEmail);
         return ResponseEntity.ok(response);
+    }
 
-
+    @PutMapping("/tasks/{taskId}/status")
+    public ResponseEntity<TaskResponse> updateTaskStatus(@PathVariable Long taskId, @RequestBody UpdateTaskStatusRequest request, Authentication authentication) {
+        String userEmail = authentication.getName();
+        TaskResponse response = taskService.updateTaskStatus(taskId, request, userEmail);
+        return ResponseEntity.ok(response);
     }
 }

@@ -248,6 +248,84 @@ class TasksIntegrationTests {
                 .andExpect(status().isForbidden());
     }
 
+    @Test
+    void getTasks_byAssignee_returnsAssignedTasks() throws Exception {
+        TaskResponse createdTask = createTaskAs(AUTH_EMAIL, AUTH_PASSWORD);
+
+        mockMvc.perform(put("/api/tasks/{taskId}/assign", createdTask.getId())
+                        .with(httpBasic(AUTH_EMAIL, AUTH_PASSWORD))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "assignee": "other@email.com"
+                                }
+                                """))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/tasks")
+                        .param("assignee", OTHER_EMAIL.toUpperCase())
+                        .with(httpBasic(AUTH_EMAIL, AUTH_PASSWORD)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(createdTask.getId()))
+                .andExpect(jsonPath("$[0].assignee").value(OTHER_EMAIL));
+    }
+
+    @Test
+    void getTasks_byAuthorAndAssignee_returnsFilteredTasks() throws Exception {
+        TaskResponse createdTask = createTaskAs(AUTH_EMAIL, AUTH_PASSWORD);
+
+        mockMvc.perform(put("/api/tasks/{taskId}/assign", createdTask.getId())
+                        .with(httpBasic(AUTH_EMAIL, AUTH_PASSWORD))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "assignee": "other@email.com"
+                                }
+                                """))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/tasks")
+                        .param("author", AUTH_EMAIL.toUpperCase())
+                        .param("assignee", OTHER_EMAIL.toUpperCase())
+                        .with(httpBasic(AUTH_EMAIL, AUTH_PASSWORD)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(createdTask.getId()))
+                .andExpect(jsonPath("$[0].author").value(AUTH_EMAIL))
+                .andExpect(jsonPath("$[0].assignee").value(OTHER_EMAIL));
+    }
+
+    @Test
+    void updateTaskStatus_byAuthor_returnsUpdatedTask() throws Exception {
+        TaskResponse createdTask = createTaskAs(AUTH_EMAIL, AUTH_PASSWORD);
+
+        mockMvc.perform(put("/api/tasks/{taskId}/status", createdTask.getId())
+                        .with(httpBasic(AUTH_EMAIL, AUTH_PASSWORD))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "status": "COMPLETED"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(createdTask.getId()))
+                .andExpect(jsonPath("$.status").value("COMPLETED"));
+    }
+
+    @Test
+    void updateTaskStatus_byUnauthorizedUser_returnsForbidden() throws Exception {
+        TaskResponse createdTask = createTaskAs(AUTH_EMAIL, AUTH_PASSWORD);
+
+        mockMvc.perform(put("/api/tasks/{taskId}/status", createdTask.getId())
+                        .with(httpBasic(OTHER_EMAIL, OTHER_PASSWORD))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "status": "COMPLETED"
+                                }
+                                """))
+                .andExpect(status().isForbidden());
+    }
+
     private TaskResponse createTaskAs(String email, String password) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/tasks")
                         .with(httpBasic(email, password))

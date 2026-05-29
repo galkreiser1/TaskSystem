@@ -59,6 +59,21 @@ public class TaskService {
         return tasks.stream()
                 .map(this::toTaskResponse)
                 .collect(Collectors.toList());
+
+    }
+
+    public List<TaskResponse> getTasksByAssignee(String assigneeEmail) {
+        List<Task> tasks = taskRepository.findByAssigneeEmailIgnoreCaseOrderByIdDesc(assigneeEmail);
+        return tasks.stream()
+                .map(this::toTaskResponse)
+                .collect(Collectors.toList());
+    }
+
+    public List<TaskResponse> getTasksByAuthorAndAssignee(String author, String asignee) {
+        List<Task> tasks = taskRepository.findByAuthorEmailIgnoreCaseAndAssigneeEmailIgnoreCaseOrderByIdDesc(author, asignee);
+        return tasks.stream()
+                .map(this::toTaskResponse)
+                .collect(Collectors.toList());
     }
 
     public TaskResponse assignTask(Long taskId, AssignTaskRequest request, String currentUserEmail){
@@ -92,6 +107,31 @@ public class TaskService {
         return email != null && email.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
     }
 
+    public TaskResponse updateTaskStatus(Long taskId, UpdateTaskStatusRequest request, String currentUserEmail) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Task not found"));
 
+        String newStatus = request.getStatus().toUpperCase();
+        if (!isValidStatus(newStatus)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid status value");
+        }
+
+        if (!task.getAuthor().getEmail().equalsIgnoreCase(currentUserEmail) &&
+                (task.getAssignee() == null || !task.getAssignee().getEmail().equalsIgnoreCase(currentUserEmail))) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only the author or assignee can update the task status");
+        }
+
+        task.setStatus(TaskStatus.valueOf(newStatus));
+        return toTaskResponse(taskRepository.save(task));
+    }
+
+    private boolean isValidStatus(String status) {
+        try {
+            TaskStatus.valueOf(status);
+            return true;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
 
 }
