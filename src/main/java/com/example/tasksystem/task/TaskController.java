@@ -1,5 +1,7 @@
 package com.example.tasksystem.task;
 
+import com.example.tasksystem.comment.CommentRequest;
+import com.example.tasksystem.comment.CommentResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -53,4 +55,19 @@ public class TaskController {
         TaskResponse response = taskService.updateTaskStatus(taskId, request, userEmail);
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("/tasks/{taskId}/comments")
+    public ResponseEntity<?> createComment(@PathVariable Long taskId, @Valid @RequestBody CommentRequest request, Authentication authentication) {
+        String authorEmail = authentication.getName();
+        taskService.createComment(taskId, request, authorEmail);
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping ("/tasks/{taskId}/comments")
+    public ResponseEntity<List<CommentResponse>> getComments(@PathVariable Long taskId) {
+        List<CommentResponse> comments = taskService.getComments(taskId);
+        return ResponseEntity.ok(comments);
+    }
+
+
 }

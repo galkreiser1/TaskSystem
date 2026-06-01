@@ -1,5 +1,7 @@
 package com.example.tasksystem.task;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public class TaskResponse {
 
     private String id;
@@ -13,6 +15,9 @@ public class TaskResponse {
     private String author;
 
     private String assignee;
+
+    @JsonProperty("total_comments")
+    private int totalComments;
 
     public String getId() {
         return id;
@@ -60,6 +65,14 @@ public class TaskResponse {
 
     public void setAssignee(String assignee) {
         this.assignee = assignee;
+    }
+
+    public int getTotalComments() {
+        return totalComments;
+    }
+
+    public void setTotalComments(int totalComments) {
+        this.totalComments = totalComments;
     }
 
 

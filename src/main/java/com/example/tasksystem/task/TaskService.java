@@ -2,6 +2,10 @@ package com.example.tasksystem.task;
 
 import com.example.tasksystem.account.Account;
 import com.example.tasksystem.account.AccountRepository;
+import com.example.tasksystem.comment.Comment;
+import com.example.tasksystem.comment.CommentRepository;
+import com.example.tasksystem.comment.CommentRequest;
+import com.example.tasksystem.comment.CommentResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -14,10 +18,12 @@ public class TaskService {
 
     private final TaskRepository taskRepository;
     private final AccountRepository accountRepository;
+    private final CommentRepository commentRepository;
 
-    public TaskService(TaskRepository taskRepository, AccountRepository accountRepository) {
+    public TaskService(TaskRepository taskRepository, AccountRepository accountRepository, CommentRepository commentRepository) {
         this.taskRepository = taskRepository;
         this.accountRepository = accountRepository;
+        this.commentRepository = commentRepository;
     }
 
     public TaskResponse createTask(CreateTaskRequest request, String authorEmail) {
@@ -44,6 +50,8 @@ public class TaskService {
         if (task.getAssignee() != null) {
             response.setAssignee(task.getAssignee().getEmail());
         }
+
+        response.setTotalComments(commentRepository.countByTaskId(task.getId()));
         return response;
     }
 
@@ -134,4 +142,34 @@ public class TaskService {
         }
     }
 
+    public void createComment(Long taskId, CommentRequest request, String authorEmail) {
+        Comment comment = new Comment();
+        comment.setText(request.getText());
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Task not found"));
+        comment.setTask(task);
+        Account author = accountRepository.findByEmail(authorEmail)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Author not found"));
+        comment.setAuthor(author);
+
+        commentRepository.save(comment);
+    }
+
+    private CommentResponse toCommentResponse(Comment comment) {
+        CommentResponse response = new CommentResponse();
+        response.setId(String.valueOf(comment.getId()));
+        response.setText(comment.getText());
+        response.setAuthor(comment.getAuthor().getEmail());
+        response.setTaskId(String.valueOf(comment.getTask().getId()));
+        return response;
+    }
+
+    public List<CommentResponse> getComments(Long taskId) {
+        taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Task not found"));
+        List<Comment> comments = commentRepository.findByTaskIdOrderByIdDesc(taskId);
+        return comments.stream()
+                .map(this::toCommentResponse)
+                .collect(Collectors.toList());
+    }
 }

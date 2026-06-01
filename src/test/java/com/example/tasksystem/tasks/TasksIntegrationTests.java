@@ -3,6 +3,7 @@ package com.example.tasksystem.tasks;
 import com.example.tasksystem.account.AccountRepository;
 import com.example.tasksystem.account.AccountService;
 import com.example.tasksystem.account.RegisterRequest;
+import com.example.tasksystem.comment.CommentRepository;
 import com.example.tasksystem.task.TaskResponse;
 import com.example.tasksystem.task.TaskRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -53,8 +54,12 @@ class TasksIntegrationTests {
     @Autowired
     private TaskRepository taskRepository;
 
+    @Autowired
+    private CommentRepository commentRepository;
+
     @BeforeEach
     void setUp() {
+        commentRepository.deleteAll();
         taskRepository.deleteAll();
         accountRepository.deleteAll();
 
@@ -324,6 +329,100 @@ class TasksIntegrationTests {
                                 }
                                 """))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void createComment_withValidRequest_returnsOk() throws Exception {
+        TaskResponse createdTask = createTaskAs(AUTH_EMAIL, AUTH_PASSWORD);
+
+        mockMvc.perform(post("/api/tasks/{taskId}/comments", createdTask.getId())
+                        .with(httpBasic(OTHER_EMAIL, OTHER_PASSWORD))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "text": "I'll be happy to take it!"
+                                }
+                                """))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void createComment_withInvalidRequest_returnsBadRequest() throws Exception {
+        TaskResponse createdTask = createTaskAs(AUTH_EMAIL, AUTH_PASSWORD);
+
+        mockMvc.perform(post("/api/tasks/{taskId}/comments", createdTask.getId())
+                        .with(httpBasic(OTHER_EMAIL, OTHER_PASSWORD))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "text": ""
+                                }
+                                """))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void getComments_returnsNewestFirst() throws Exception {
+        TaskResponse createdTask = createTaskAs(AUTH_EMAIL, AUTH_PASSWORD);
+
+        mockMvc.perform(post("/api/tasks/{taskId}/comments", createdTask.getId())
+                        .with(httpBasic(AUTH_EMAIL, AUTH_PASSWORD))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "text": "older comment"
+                                }
+                                """))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/tasks/{taskId}/comments", createdTask.getId())
+                        .with(httpBasic(OTHER_EMAIL, OTHER_PASSWORD))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "text": "newer comment"
+                                }
+                                """))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/tasks/{taskId}/comments", createdTask.getId())
+                        .with(httpBasic(AUTH_EMAIL, AUTH_PASSWORD)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].text").value("newer comment"))
+                .andExpect(jsonPath("$[0].author").value(OTHER_EMAIL))
+                .andExpect(jsonPath("$[1].text").value("older comment"))
+                .andExpect(jsonPath("$[1].author").value(AUTH_EMAIL));
+    }
+
+    @Test
+    void getTasks_includesTotalComments() throws Exception {
+        TaskResponse createdTask = createTaskAs(AUTH_EMAIL, AUTH_PASSWORD);
+
+        mockMvc.perform(post("/api/tasks/{taskId}/comments", createdTask.getId())
+                        .with(httpBasic(OTHER_EMAIL, OTHER_PASSWORD))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "text": "first comment"
+                                }
+                                """))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/tasks/{taskId}/comments", createdTask.getId())
+                        .with(httpBasic(AUTH_EMAIL, AUTH_PASSWORD))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "text": "second comment"
+                                }
+                                """))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/tasks")
+                        .with(httpBasic(AUTH_EMAIL, AUTH_PASSWORD)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(createdTask.getId()))
+                .andExpect(jsonPath("$[0].total_comments").value(2));
     }
 
     private TaskResponse createTaskAs(String email, String password) throws Exception {
